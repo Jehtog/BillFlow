@@ -1,85 +1,151 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BillFlow">
-<meta name="theme-color" content="#0a0a0f">
-<title>BillFlow</title>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-/* Keeping your original styles exactly as provided */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
-:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a24;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f5;--text2:rgba(240,240,245,0.5);--text3:rgba(240,240,245,0.28);--red:#ff3b5c;--orange:#ff8c42;--green:#2ecc7a;--blue:#4f8ef7;--accent:#7b61ff;--red-bg:rgba(255,59,92,0.13);--orange-bg:rgba(255,140,66,0.13);--green-bg:rgba(46,204,122,0.13);--blue-bg:rgba(79,142,247,0.13);--r:18px;--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:pan-y;}
-#app{height:100dvh;display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:relative;overflow:hidden;}
-.screen{display:none;flex-direction:column;height:100%;overflow:hidden;position:absolute;inset:0;}
-.screen.active{display:flex;}
-.scroll-body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:100px;will-change:scroll-position;}
-/* (Include all your original CSS here...) */
-</style>
-</head>
-<body>
-<div id="app">
-    </div>
-
 <script>
-// --- YOUR DATA ---
-let invoices = JSON.parse(localStorage.getItem('bf2')||'null')||[
-  {id:1,vendor:'AWS',amount:2840,currency:'EUR',due:'2026-05-27',category:'Cloud Infrastructure',status:'pending',urgency:'high',iban:'BE68 5390 0754 7034',ref:'+++123/4567/89012+++'},
-];
-let nid = Math.max(...invoices.map(i=>i.id), 0) + 1;
-function save() { localStorage.setItem('bf2', JSON.stringify(invoices)); }
 
-// --- INTEGRATED OCR ---
-async function parseImageText(imgData) {
-    const ss = document.getElementById('scan-status');
-    ss.style.display = 'block';
-    ss.textContent = '⏳ Reading document…';
+// =========================
+
+// SAFE INITIALISATION
+
+// =========================
+
+let invoices = [];
+
+try {
+
+    const stored = localStorage.getItem('bf2');
+
+    invoices = stored ? JSON.parse(stored) : [];
+
+} catch (e) {
+
+    console.error("LocalStorage parse error:", e);
+
+    invoices = [];
+
+}
+
+// =========================
+
+// SAFE SAVE FUNCTION WRAPPER
+
+// =========================
+
+function safeSave() {
+
     try {
-        const { data: { text } } = await Tesseract.recognize(imgData, 'eng');
-        const match = text.match(/\d+\.\d{2}/);
-        if(match) {
-            document.getElementById('f-amt').value = match[0];
-            ss.textContent = '✅ Amount: €' + match[0];
-        } else {
-            ss.textContent = '⚠️ Could not read amount.';
-        }
-    } catch(e) { ss.textContent = '❌ OCR Error.'; }
-}
 
-// --- UPDATED SAVE FUNCTIONS ---
-function saveInv() {
-    const vendor = document.getElementById('f-vendor').value.trim();
-    const amount = parseFloat(document.getElementById('f-amt').value);
-    const due = document.getElementById('f-due').value;
-    if(!vendor||!amount||!due){toast('⚠️ Fill required fields'); return;}
-    invoices.push({
-        id: nid++, vendor, amount, currency: document.getElementById('f-cur').value,
-        due, category: document.getElementById('f-cat').value, status: 'pending', urgency: selUrg,
-        iban: document.getElementById('f-iban').value.trim(), ref: document.getElementById('f-ref').value.trim()
-    });
-    save(); // Auto-save
-    closeSheet('ov-add');
-    renderAll();
-    toast('✅ Added!');
-}
+        localStorage.setItem('bf2', JSON.stringify(invoices));
 
-function toggleStatus(id) {
-    const inv = invoices.find(i => i.id === id);
-    if (inv) {
-        inv.status = inv.status === 'paid' ? 'pending' : 'paid';
-        save(); // Auto-save
-        openDetail(id);
-        renderAll();
+    } catch (e) {
+
+        console.error("Save failed:", e);
+
     }
+
 }
 
-// --- KEEP ALL YOUR OTHER ORIGINAL FUNCTIONS BELOW ---
-// renderAll(), tick(), sw(), etc.
+// =========================
+
+// PROXY (SAFE VERSION)
+
+// =========================
+
+const invoicesProxy = new Proxy(invoices, {
+
+    set(target, prop, value) {
+
+        target[prop] = value;
+
+        safeSave();
+
+        if (typeof renderAll === "function") {
+
+            try {
+
+                renderAll();
+
+            } catch (e) {
+
+                console.error("renderAll error:", e);
+
+            }
+
+        }
+
+        return true;
+
+    }
+
+});
+
+// IMPORTANT: replace old array reference
+
+invoices = invoicesProxy;
+
+// =========================
+
+// OCR FUNCTION (SAFE)
+
+// =========================
+
+async function parseImageText(imgData) {
+
+    const ss = document.getElementById('scan-status');
+
+    if (ss) {
+
+        ss.style.display = 'block';
+
+        ss.textContent = '⏳ Reading your document…';
+
+    }
+
+    // Check OCR exists
+
+    if (typeof Tesseract === "undefined") {
+
+        console.error("Tesseract not loaded");
+
+        if (ss) ss.textContent = "❌ OCR library missing";
+
+        return;
+
+    }
+
+    try {
+
+        const result = await Tesseract.recognize(imgData, 'eng');
+
+        const text = result?.data?.text || "";
+
+        const amountMatch = text.match(/\d+\.\d{2}/);
+
+        if (amountMatch) {
+
+            const field = document.getElementById('f-amt');
+
+            if (field) field.value = amountMatch[0];
+
+            if (ss) {
+
+                ss.textContent = '✅ Found amount: €' + amountMatch[0];
+
+                ss.style.background = 'var(--green-bg)';
+
+            }
+
+        } else {
+
+            if (ss) ss.textContent = '⚠️ No amount detected.';
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+        if (ss) ss.textContent = '❌ OCR Error';
+
+    }
+
+}
+
 </script>
-</body>
-</html>

@@ -1,66 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BillFlow">
+<meta name="theme-color" content="#0a0a0f">
+<title>BillFlow</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* YOUR ORIGINAL CSS GOES HERE */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
+:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a24;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f5;--text2:rgba(240,240,245,0.5);--text3:rgba(240,240,245,0.28);--red:#ff3b5c;--orange:#ff8c42;--green:#2ecc7a;--blue:#4f8ef7;--accent:#7b61ff;--red-bg:rgba(255,59,92,0.13);--orange-bg:rgba(255,140,66,0.13);--green-bg:rgba(46,204,122,0.13);--blue-bg:rgba(79,142,247,0.13);--r:18px;--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:pan-y;}
+#app{height:100dvh;display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:relative;overflow:hidden;}
+.screen{display:none;flex-direction:column;height:100%;overflow:hidden;position:absolute;inset:0;}
+.screen.active{display:flex;}
+.scroll-body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:100px;}
+/* ... (REST OF YOUR CSS IS ALREADY IN YOUR FILE) ... */
+</style>
 </head>
 <body>
 <script>
-// 1. DATA INITIALIZATION
-let invoices = JSON.parse(localStorage.getItem('bf2')) || [
-  {id:1,vendor:'AWS',amount:2840,currency:'EUR',due:'2026-05-27',category:'Cloud Infrastructure',status:'pending',urgency:'high',iban:'BE68 5390 0754 7034',ref:'+++123/4567/89012+++'},
-  // ... rest of your default data ...
+// DATA
+const ICONS={'Cloud Infrastructure':'☁️','Real Estate':'🏢','Design Tools':'🎨','Communication':'💬','Subscription':'🔄','Utilities':'⚡','Insurance':'🛡️','Taxes':'📄','Other':'📦'};
+const CSYM={EUR:'€',USD:'$',GBP:'£',CHF:'₣'};
+
+let invoices = JSON.parse(localStorage.getItem('bf2') || 'null') || [
+  {id:1,vendor:'AWS',amount:2840,currency:'EUR',due:'2026-05-27',category:'Cloud Infrastructure',status:'pending',urgency:'high',iban:'BE68 5390 0754 7034',ref:'+++123/4567/89012+++'}
 ];
+let nid = Math.max(...invoices.map(i=>i.id), 0) + 1;
 
-// 2. AUTO-SAVE FUNCTION (Kept your original naming)
-function save() {
-    localStorage.setItem('bf2', JSON.stringify(invoices));
-}
+// SAVE FUNCTION
+function save() { localStorage.setItem('bf2', JSON.stringify(invoices)); }
 
-// 3. OCR SCANNING (Integration into your existing function)
+// OCR FUNCTION
 async function parseImageText(imgData) {
     const ss = document.getElementById('scan-status');
     ss.style.display = 'block';
-    ss.textContent = '⏳ Reading your document…';
-
+    ss.textContent = '⏳ Reading document…';
     try {
-        // Tesseract.js recognizes the image
         const { data: { text } } = await Tesseract.recognize(imgData, 'eng');
-        const amountMatch = text.match(/\d+\.\d{2}/);
-        
-        if (amountMatch) {
-            document.getElementById('f-amt').value = amountMatch[0];
-            ss.textContent = '✅ Found amount: €' + amountMatch[0] + '. Please verify fields.';
-            ss.style.background = 'var(--green-bg)';
-            ss.style.color = 'var(--green)';
+        const match = text.match(/\d+\.\d{2}/);
+        if (match) {
+            document.getElementById('f-amt').value = match[0];
+            ss.textContent = '✅ Amount found: €' + match[0];
         } else {
-            ss.textContent = '⚠️ Could not auto-read amount. Please enter manually.';
+            ss.textContent = '⚠️ Could not read amount.';
         }
-    } catch (err) {
-        ss.textContent = '❌ OCR Error. Please enter manually.';
-    }
+    } catch(e) { ss.textContent = '❌ OCR Error.'; }
 }
 
-// 4. ENSURE SAVE ON EVERY MODIFICATION
-// Instead of a complex Proxy, we simply call save() inside your existing saveInv and toggleStatus functions.
+// INTEGRATED SAVE LOGIC
 function saveInv() {
-    // ... your existing logic ...
-    invoices.push({ /* ... */ });
-    save(); // <--- CALLING SAVE HERE
-    renderAll();
+    const vendor = document.getElementById('f-vendor').value.trim();
+    const amount = parseFloat(document.getElementById('f-amt').value);
+    const due = document.getElementById('f-due').value;
+    if(!vendor||!amount||!due){toast('⚠️ Fill required fields'); return;}
+    
+    invoices.push({
+        id: nid++, vendor, amount, 
+        currency: document.getElementById('f-cur').value,
+        due, category: document.getElementById('f-cat').value,
+        status: 'pending', urgency: selUrg,
+        iban: document.getElementById('f-iban').value.trim(),
+        ref: document.getElementById('f-ref').value.trim()
+    });
+    save(); // SAVES AUTOMATICALLY
     closeSheet('ov-add');
+    renderAll();
+    toast('✅ Added!');
 }
 
 function toggleStatus(id) {
     const inv = invoices.find(i => i.id === id);
-    if (!inv) return;
-    inv.status = inv.status === 'paid' ? 'pending' : 'paid';
-    save(); // <--- CALLING SAVE HERE
-    renderAll();
+    if (inv) {
+        inv.status = inv.status === 'paid' ? 'pending' : 'paid';
+        save(); // SAVES AUTOMATICALLY
+        renderAll();
+        openDetail(id);
+    }
 }
 
-// ... [KEEP ALL YOUR ORIGINAL FUNCTIONS LIKE renderAll(), tick(), etc.] ...
+// ... (KEEP ALL YOUR ORIGINAL FUNCTIONS: renderAll, tick, sw, etc.) ...
 </script>
 </body>
 </html>

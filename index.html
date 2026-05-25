@@ -1,151 +1,127 @@
 <script>
-
-// =========================
-
-// SAFE INITIALISATION
-
-// =========================
+// ==========================
+// 1. SAFE DATA LOAD
+// ==========================
 
 let invoices = [];
 
 try {
-
     const stored = localStorage.getItem('bf2');
-
     invoices = stored ? JSON.parse(stored) : [];
-
 } catch (e) {
-
-    console.error("LocalStorage parse error:", e);
-
+    console.error("LocalStorage error:", e);
     invoices = [];
-
 }
 
-// =========================
+// ==========================
+// 2. SAFE SAVE
+// ==========================
 
-// SAFE SAVE FUNCTION WRAPPER
-
-// =========================
-
-function safeSave() {
-
+function save() {
     try {
-
         localStorage.setItem('bf2', JSON.stringify(invoices));
-
     } catch (e) {
-
         console.error("Save failed:", e);
-
     }
-
 }
 
-// =========================
+// ==========================
+// 3. SAFE RENDER (MINIMAL BUT SAFE)
+// ==========================
 
-// PROXY (SAFE VERSION)
+function renderAll() {
+    const container = document.getElementById('app');
 
-// =========================
-
-const invoicesProxy = new Proxy(invoices, {
-
-    set(target, prop, value) {
-
-        target[prop] = value;
-
-        safeSave();
-
-        if (typeof renderAll === "function") {
-
-            try {
-
-                renderAll();
-
-            } catch (e) {
-
-                console.error("renderAll error:", e);
-
-            }
-
-        }
-
-        return true;
-
+    if (!container) {
+        console.error("Missing #app container");
+        return;
     }
 
+    // NEVER blindly clear page without rebuild safety
+    container.innerHTML = "";
+
+    const title = document.createElement("h2");
+    title.innerText = "Invoices";
+
+    container.appendChild(title);
+
+    if (invoices.length === 0) {
+        const empty = document.createElement("p");
+        empty.innerText = "No invoices yet";
+        container.appendChild(empty);
+        return;
+    }
+
+    invoices.forEach((inv, i) => {
+        const div = document.createElement("div");
+        div.style.padding = "10px";
+        div.style.border = "1px solid #ccc";
+        div.style.margin = "5px 0";
+
+        div.innerText = `#${i + 1} - €${inv.amount || 0}`;
+
+        container.appendChild(div);
+    });
+}
+
+// ==========================
+// 4. INITIAL RENDER
+// ==========================
+
+document.addEventListener("DOMContentLoaded", () => {
+    renderAll();
 });
 
-// IMPORTANT: replace old array reference
-
-invoices = invoicesProxy;
-
-// =========================
-
-// OCR FUNCTION (SAFE)
-
-// =========================
+// ==========================
+// 5. OCR (SAFE)
+// ==========================
 
 async function parseImageText(imgData) {
-
     const ss = document.getElementById('scan-status');
 
     if (ss) {
-
         ss.style.display = 'block';
-
-        ss.textContent = '⏳ Reading your document…';
-
+        ss.textContent = '⏳ Reading document...';
     }
 
-    // Check OCR exists
-
     if (typeof Tesseract === "undefined") {
-
         console.error("Tesseract not loaded");
-
-        if (ss) ss.textContent = "❌ OCR library missing";
-
+        if (ss) ss.textContent = "OCR library missing";
         return;
-
     }
 
     try {
-
         const result = await Tesseract.recognize(imgData, 'eng');
-
         const text = result?.data?.text || "";
 
-        const amountMatch = text.match(/\d+\.\d{2}/);
+        const match = text.match(/\d+\.\d{2}/);
 
-        if (amountMatch) {
-
+        if (match) {
             const field = document.getElementById('f-amt');
+            if (field) field.value = match[0];
 
-            if (field) field.value = amountMatch[0];
-
-            if (ss) {
-
-                ss.textContent = '✅ Found amount: €' + amountMatch[0];
-
-                ss.style.background = 'var(--green-bg)';
-
-            }
-
+            if (ss) ss.textContent = "Found: €" + match[0];
         } else {
-
-            if (ss) ss.textContent = '⚠️ No amount detected.';
-
+            if (ss) ss.textContent = "No amount found";
         }
 
     } catch (err) {
-
         console.error(err);
-
-        if (ss) ss.textContent = '❌ OCR Error';
-
+        if (ss) ss.textContent = "OCR error";
     }
-
 }
 
+// ==========================
+// 6. ADD INVOICE (SAFE)
+// ==========================
+
+function addInvoice(amount) {
+    invoices.push({
+        amount: amount,
+        date: new Date().toISOString()
+    });
+
+    save();
+    renderAll();
+}
 </script>

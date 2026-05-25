@@ -1,24 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
 <script>
-// 1. AUTO-SAVE PROXY (Add this right after your 'invoices' array declaration)
-let invoices = JSON.parse(localStorage.getItem('bf2')||'null')||[/* ...your default data... */];
+// 1. DATA INITIALIZATION
+let invoices = JSON.parse(localStorage.getItem('bf2')) || [
+  {id:1,vendor:'AWS',amount:2840,currency:'EUR',due:'2026-05-27',category:'Cloud Infrastructure',status:'pending',urgency:'high',iban:'BE68 5390 0754 7034',ref:'+++123/4567/89012+++'},
+  // ... rest of your default data ...
+];
 
-const invoicesProxy = new Proxy(invoices, {
-    set(target, prop, value) {
-        target[prop] = value;
-        save(); // Triggers your original save function automatically
-        renderAll(); // Refreshes the UI automatically
-        return true;
-    }
-});
-// Replace all references of 'invoices' with 'invoicesProxy' in your functions.
+// 2. AUTO-SAVE FUNCTION (Kept your original naming)
+function save() {
+    localStorage.setItem('bf2', JSON.stringify(invoices));
+}
 
-// 2. OCR INTEGRATION (Update your existing parseImageText function)
+// 3. OCR SCANNING (Integration into your existing function)
 async function parseImageText(imgData) {
     const ss = document.getElementById('scan-status');
     ss.style.display = 'block';
-    ss.textContent = '⏳ Reading your document...';
+    ss.textContent = '⏳ Reading your document…';
 
     try {
+        // Tesseract.js recognizes the image
         const { data: { text } } = await Tesseract.recognize(imgData, 'eng');
         const amountMatch = text.match(/\d+\.\d{2}/);
         
@@ -26,6 +33,7 @@ async function parseImageText(imgData) {
             document.getElementById('f-amt').value = amountMatch[0];
             ss.textContent = '✅ Found amount: €' + amountMatch[0] + '. Please verify fields.';
             ss.style.background = 'var(--green-bg)';
+            ss.style.color = 'var(--green)';
         } else {
             ss.textContent = '⚠️ Could not auto-read amount. Please enter manually.';
         }
@@ -33,4 +41,26 @@ async function parseImageText(imgData) {
         ss.textContent = '❌ OCR Error. Please enter manually.';
     }
 }
+
+// 4. ENSURE SAVE ON EVERY MODIFICATION
+// Instead of a complex Proxy, we simply call save() inside your existing saveInv and toggleStatus functions.
+function saveInv() {
+    // ... your existing logic ...
+    invoices.push({ /* ... */ });
+    save(); // <--- CALLING SAVE HERE
+    renderAll();
+    closeSheet('ov-add');
+}
+
+function toggleStatus(id) {
+    const inv = invoices.find(i => i.id === id);
+    if (!inv) return;
+    inv.status = inv.status === 'paid' ? 'pending' : 'paid';
+    save(); // <--- CALLING SAVE HERE
+    renderAll();
+}
+
+// ... [KEEP ALL YOUR ORIGINAL FUNCTIONS LIKE renderAll(), tick(), etc.] ...
 </script>
+</body>
+</html>

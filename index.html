@@ -1,90 +1,36 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>BillFlow Pro</title>
-<style>
-    /* Reset & Variables */
-    :root { 
-        --bg: #0a0a0f; --bg2: #111118; --bg3: #1a1a24;
-        --text: #f0f0f5; --blue: #4f8ef7; --red: #ff3b5c; --green: #2ecc7a;
-        --safe-t: env(safe-area-inset-top); --safe-b: env(safe-area-inset-bottom);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100dvh; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; }
-    #app { height: 100dvh; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; position: relative; }
-    
-    /* Layout */
-    .screen { display: none; height: 100%; flex-direction: column; position: absolute; inset: 0; }
-    .screen.active { display: flex; }
-    .scroll-body { flex: 1; overflow-y: auto; padding-bottom: calc(100px + var(--safe-b)); }
-    
-    /* Nav & Header */
-    .bnav { 
-        position: absolute; bottom: 0; width: 100%; height: calc(70px + var(--safe-b)); 
-        background: rgba(10, 10, 15, 0.95); backdrop-filter: blur(20px);
-        display: flex; justify-content: space-around; align-items: center; padding-bottom: var(--safe-b); z-index: 100;
-    }
-    .fab { 
-        width: 50px; height: 50px; border-radius: 15px; background: linear-gradient(135deg, var(--blue), #7b61ff);
-        display: flex; align-items: center; justify-content: center; font-size: 28px; color: white; margin-top: -20px;
-    }
-    .header-pad { padding-top: calc(var(--safe-t) + 20px); padding-left: 20px; padding-bottom: 20px; }
-    
-    /* Cards & Components */
-    .card { background: var(--bg3); margin: 8px 16px; padding: 16px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.07); }
-</style>
-</head>
-<body>
-<div id="app">
-    <div class="screen active" id="sc-dash">
-        <div class="header-pad"><h1>BillFlow</h1></div>
-        <div class="scroll-body" id="inv-list-d"></div>
-        <nav class="bnav">
-            <div onclick="sw('dash')">📊</div>
-            <div onclick="sw('cal')">📅</div>
-            <div class="fab" onclick="openAdd()">＋</div>
-            <div onclick="sw('arc')">📁</div>
-            <div onclick="sw('set')">⚙️</div>
-        </nav>
-    </div>
-    
-    <div id="ov-add" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:200; align-items:flex-end;">
-        <div style="width:100%; background:#14141e; padding:20px; border-radius:26px 26px 0 0; max-height:90dvh; overflow-y:auto;">
-            <h2>Add Invoice</h2>
-            <input type="text" id="f-vendor" placeholder="Vendor" style="width:100%; padding:12px; margin:10px 0; background:#222; color:white; border:none; border-radius:10px;">
-            <input type="number" id="f-amt" placeholder="Amount" style="width:100%; padding:12px; margin:10px 0; background:#222; color:white; border:none; border-radius:10px;">
-            <button onclick="saveInv()" style="width:100%; padding:15px; background:var(--blue); color:white; border:none; border-radius:12px;">Save Invoice</button>
-            <button onclick="document.getElementById('ov-add').style.display='none'" style="width:100%; padding:10px; margin-top:10px; background:transparent; color:#888;">Cancel</button>
-        </div>
-    </div>
-</div>
-
 <script>
-    let invoices = JSON.parse(localStorage.getItem('bf2')) || [];
-    
-    function sw(name) { /* Switch logic */ }
-    
-    function openAdd() { document.getElementById('ov-add').style.display = 'flex'; }
-    
-    function saveInv() {
-        const v = document.getElementById('f-vendor').value;
-        const a = document.getElementById('f-amt').value;
-        invoices.push({ id: Date.now(), vendor: v, amount: a, status: 'pending' });
-        localStorage.setItem('bf2', JSON.stringify(invoices));
-        document.getElementById('ov-add').style.display = 'none';
-        render();
+// 1. AUTO-SAVE PROXY (Add this right after your 'invoices' array declaration)
+let invoices = JSON.parse(localStorage.getItem('bf2')||'null')||[/* ...your default data... */];
+
+const invoicesProxy = new Proxy(invoices, {
+    set(target, prop, value) {
+        target[prop] = value;
+        save(); // Triggers your original save function automatically
+        renderAll(); // Refreshes the UI automatically
+        return true;
     }
-    
-    function render() {
-        const list = document.getElementById('inv-list-d');
-        list.innerHTML = invoices.map(i => `<div class="card">${i.vendor} - €${i.amount}</div>`).join('');
+});
+// Replace all references of 'invoices' with 'invoicesProxy' in your functions.
+
+// 2. OCR INTEGRATION (Update your existing parseImageText function)
+async function parseImageText(imgData) {
+    const ss = document.getElementById('scan-status');
+    ss.style.display = 'block';
+    ss.textContent = '⏳ Reading your document…';
+
+    try {
+        const { data: { text } } = await Tesseract.recognize(imgData, 'eng');
+        const amountMatch = text.match(/\d+\.\d{2}/);
+        
+        if (amountMatch) {
+            document.getElementById('f-amt').value = amountMatch[0];
+            ss.textContent = '✅ Found amount: €' + amountMatch[0] + '. Please verify fields.';
+            ss.style.background = 'var(--green-bg)';
+        } else {
+            ss.textContent = '⚠️ Could not auto-read amount. Please enter manually.';
+        }
+    } catch (err) {
+        ss.textContent = '❌ OCR Error. Please enter manually.';
     }
-    
-    render();
+}
 </script>
-</body>
-</html>

@@ -1,509 +1,74 @@
-<!DOCTYPE html>
+l<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BillFlow">
-<meta name="theme-color" content="#0a0a0f">
-<title>BillFlow</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
+<title>BillFlow Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
   :root {
-    --bg: #0a0a0f; --bg2: #111118; --bg3: #18181f;
-    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
-    --text: #f0f0f5; --text2: rgba(240,240,245,0.5); --text3: rgba(240,240,245,0.28);
-    --red: #ff3b5c; --orange: #ff8c42; --green: #2ecc7a; --blue: #4f8ef7; --accent: #7b61ff;
-    --red-bg: rgba(255,59,92,0.12); --orange-bg: rgba(255,140,66,0.12);
-    --green-bg: rgba(46,204,122,0.12); --blue-bg: rgba(79,142,247,0.12);
-    --radius: 18px;
-    --safe-top: env(safe-area-inset-top, 47px); /* iPhone 14 Pro Max default fallback */
+    --bg: #0a0a0f; --bg3: #18181f; --text: #f0f0f5; --blue: #4f8ef7; --green: #2ecc7a; --red: #ff3b5c;
+    /* 14 Pro Max safe area fixes */
+    --safe-top: env(safe-area-inset-top, 47px);
     --safe-bottom: env(safe-area-inset-bottom, 34px);
   }
-
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; overflow: hidden; overscroll-behavior: none; }
-  #app { height: 100vh; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; position: relative; }
-
-  /* ── SCREENS ── */
-  .screen { display: none; flex-direction: column; height: 100%; overflow: hidden; padding-bottom: 90px; }
-  .screen.active { display: flex; }
-  .scroll-body { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
-  .scroll-body::-webkit-scrollbar { display: none; }
-
-  /* ── HEADER ── */
-  .statusbar { height: var(--safe-top); width: 100%; flex-shrink: 0; }
-  .header { padding: 10px 20px 16px; display: flex; justify-content: space-between; align-items: flex-end; flex-shrink: 0; }
-  .header-title { font-family: 'DM Serif Display', serif; font-size: 34px; color: var(--text); line-height: 1; }
-  .header-sub { font-size: 12px; color: var(--text3); margin-top: 4px; font-weight: 400; }
-  
-  /* ── UI COMPONENTS ── */
-  .section-hd { display: flex; justify-content: space-between; align-items: center; padding: 0 16px 10px; margin-top: 10px;}
-  .section-title { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
-  
-  /* Cards */
-  .cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 16px; }
-  .summary-card { border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
-  .card-icon { font-size: 22px; margin-bottom: 8px; }
-  .card-val { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-  .card-label { font-size: 11px; color: var(--text2); margin-top: 1px; font-weight: 500; text-transform: uppercase; }
-  .card-blue { background: var(--blue-bg); color: var(--blue); }
-  .card-red { background: var(--red-bg); color: var(--red); }
-
-  /* Invoice Row */
-  .invoice-list { padding: 0 16px 20px; display: flex; flex-direction: column; gap: 8px; }
-  .invoice-row { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-left-width: 3px; }
-  .invoice-row.urgency-high { border-left-color: var(--red); }
-  .invoice-row.urgency-medium { border-left-color: var(--orange); }
-  .invoice-row.urgency-low { border-left-color: var(--green); }
-  .invoice-row.paid { border-left-color: var(--green); opacity: 0.6; }
-  .inv-icon { width: 44px; height: 44px; border-radius: 13px; background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 21px; flex-shrink: 0; }
-  .inv-main { flex: 1; min-width: 0; }
-  .inv-name { font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
-  .inv-cat { font-size: 11px; color: var(--text3); margin-top: 3px; }
-  .inv-right { text-align: right; flex-shrink: 0; }
-  .inv-amount { font-size: 17px; font-weight: 750; font-family: 'DM Mono', monospace; }
-  .inv-due { font-size: 11px; margin-top: 2px; font-weight: 500; color: var(--text3); }
-
-  /* Budget & Insights */
-  .budget-box { background: var(--bg3); border-radius: 16px; border: 1px solid var(--border); padding: 20px; margin: 0 16px 20px; }
-  .budget-title { font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600; }
-  .budget-amount { font-size: 32px; font-family: 'DM Mono', monospace; font-weight: 800; color: var(--green); }
-  .budget-input-row { display: flex; gap: 10px; margin-top: 15px; }
-  .budget-input { flex: 1; background: var(--bg2); border: 1px solid var(--border2); color: white; padding: 10px; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 16px; }
-  .budget-btn { background: var(--blue); color: white; border: none; padding: 10px 15px; border-radius: 10px; font-weight: 600; cursor: pointer; }
-  .chart-container { background: var(--bg3); padding: 16px; border-radius: 16px; margin: 0 16px 20px; border: 1px solid var(--border); }
-
-  /* ── BOTTOM NAV ── */
-  .bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(10,10,15,0.92); backdrop-filter: blur(20px); border-top: 1px solid var(--border); padding: 10px 0 var(--safe-bottom); display: flex; justify-content: space-around; align-items: center; z-index: 50; }
-  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 10px; }
-  .nav-icon { font-size: 22px; }
-  .nav-label { font-size: 9px; font-weight: 600; color: var(--text3); text-transform: uppercase; }
-  .nav-item.active .nav-label { color: var(--blue); }
-  .nav-item.active .nav-icon { filter: drop-shadow(0 0 6px var(--blue)); }
-  .nav-add { width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, var(--blue), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 26px; color: #fff; box-shadow: 0 4px 20px rgba(79,142,247,0.4); margin-top: -10px; cursor: pointer; }
-
-  /* ── MODALS ── */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 200; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
-  .modal-sheet { width: 100%; background: #15151e; border-radius: 28px 28px 0 0; border-top: 1px solid var(--border2); padding: 20px 20px calc(var(--safe-bottom) + 20px); transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.32,0.72,0,1); max-height: 90vh; overflow-y: auto; position: relative; }
-  .modal-overlay.open .modal-sheet { transform: translateY(0); }
-  
-  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-  .form-title { font-family: 'DM Serif Display', serif; font-size: 26px; }
-  .btn-close { background: var(--bg3); border: 1px solid var(--border2); color: var(--text); width: 32px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
-
-  /* Forms & Scanner */
-  .scanner-box { background: linear-gradient(135deg, rgba(123, 97, 255, 0.15), rgba(79, 142, 247, 0.15)); border: 1px dashed var(--accent); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; cursor: pointer; }
-  .scanner-icon { font-size: 32px; margin-bottom: 6px; display: inline-block; }
-  .scanner-text { font-size: 14px; font-weight: 600; color: #fff; }
-  .scanner-sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
-  .form-group { margin-bottom: 14px; }
-  .form-label { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; margin-bottom: 6px; }
-  .form-input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: 14px; padding: 13px 14px; color: var(--text); font-size: 15px; font-family: 'Outfit', sans-serif; outline: none; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .form-submit { width: 100%; padding: 17px; border-radius: 16px; border: none; background: linear-gradient(135deg, var(--blue), var(--accent)); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; }
-  
-  /* Settings List */
-  .settings-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
-  .settings-item { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
-  .settings-icon { font-size: 20px; width: 36px; text-align: center; }
-  .settings-label { font-size: 15px; font-weight: 600; }
-  .settings-desc { font-size: 11px; color: var(--text3); }
-
-  /* Toast */
-  .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #2ecc7a; color: #000; padding: 10px 20px; border-radius: 30px; font-weight: 700; font-size: 13px; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 1000; }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* Utilities */
-  .recurring-badge { font-size: 12px; color: var(--blue); margin-left: 6px; }
-  .toggle-switch { display: flex; align-items: center; justify-content: space-between; background: var(--bg3); padding: 14px; border-radius: 14px; border: 1px solid var(--border2); }
+  body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; margin: 0; padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
+  #app { height: calc(100dvh - var(--safe-top) - var(--safe-bottom)); display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; }
+  .scroll-body { flex: 1; overflow-y: auto; padding: 20px; }
+  /* Ensure components respect screen width */
+  .form-input { width: 100%; background: var(--bg3); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 14px; color: white; margin-bottom: 10px; }
 </style>
 </head>
 <body>
 <div id="app">
-  <div class="statusbar"></div>
-
-  <div class="screen active" id="screen-dashboard">
-    <div class="header">
-      <div><div class="header-title">BillFlow</div><div class="header-sub" id="header-date">Dashboard</div></div>
-    </div>
-    <div class="scroll-body">
-      <div class="cards-row">
-        <div class="summary-card card-blue">
-          <div class="card-icon">💳</div><div class="card-val" id="card-total">€0</div><div class="card-label">Pending Total</div>
-        </div>
-        <div class="summary-card card-red">
-          <div class="card-icon">🚨</div><div class="card-val" id="card-high">0</div><div class="card-label">High Priority</div>
-        </div>
-      </div>
-      <div class="section-hd"><div class="section-title">Pending Invoices</div></div>
-      <div class="invoice-list" id="invoice-list"></div>
+  <div class="scroll-body" id="main-view">
+    <div id="dashboard-content">
+      <h1 id="view-title">Dashboard</h1>
+      <button onclick="toggleView()" style="padding:10px; border-radius:10px; margin-bottom:10px;">Switch Calendar/List</button>
+      <div id="display-area"></div>
     </div>
   </div>
-
-  <div class="screen" id="screen-insights">
-    <div class="header">
-      <div><div class="header-title">Insights</div><div class="header-sub">Budget & Analytics</div></div>
-    </div>
-    <div class="scroll-body">
-      
-      <div class="budget-box">
-        <div class="budget-title">Remaining Monthly Budget</div>
-        <div class="budget-amount" id="budget-left">€0.00</div>
-        <div style="font-size:12px; color:var(--text3); margin-top:5px;">Income minus total monthly spending</div>
-        
-        <div class="budget-input-row">
-          <input type="number" id="income-input" class="budget-input" placeholder="Set Monthly Salary/Income">
-          <button class="budget-btn" onclick="saveIncome()">Save</button>
-        </div>
-      </div>
-
-      <div class="chart-container">
-        <div class="budget-title" style="margin-bottom:15px">Spending by Category</div>
-        <canvas id="categoryChart" width="100" height="100"></canvas>
-      </div>
-
-    </div>
-  </div>
-
-  <div class="screen" id="screen-settings">
-    <div class="header">
-      <div><div class="header-title">Settings</div><div class="header-sub">Preferences & Archive</div></div>
-    </div>
-    <div class="scroll-body">
-      <div class="settings-list" style="margin-top:10px;">
-        <div class="settings-item" onclick="switchScreen('archive')">
-          <div class="settings-icon">📁</div>
-          <div style="flex:1"><div class="settings-label">View Archive</div><div class="settings-desc">See all past paid invoices</div></div>
-        </div>
-        <div class="settings-item" onclick="confirmClearData()">
-          <div class="settings-icon">🗑️</div>
-          <div style="flex:1"><div class="settings-label" style="color:var(--red)">Clear Data</div><div class="settings-desc">Erase all invoices on this device</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="screen" id="screen-archive">
-    <div class="header">
-      <div><div class="header-title">Archive</div><div class="header-sub">Paid Invoices</div></div>
-      <div class="btn-close" onclick="switchScreen('settings')">🔙</div>
-    </div>
-    <div class="scroll-body">
-      <div class="invoice-list" id="archive-list"></div>
-    </div>
-  </div>
-
-  <div class="bottom-nav">
-    <div class="nav-item active" onclick="switchScreen('dashboard')"><div class="nav-icon">📊</div><div class="nav-label">Home</div></div>
-    <div class="nav-item" onclick="switchScreen('insights')"><div class="nav-icon">📈</div><div class="nav-label">Insights</div></div>
-    <div class="nav-add" onclick="openAddModal()">＋</div>
-    <div class="nav-item" onclick="switchScreen('settings')"><div class="nav-icon">⚙️</div><div class="nav-label">Settings</div></div>
-  </div>
-
-  <div class="modal-overlay" id="modal-add">
-    <div class="modal-sheet">
-      <div class="modal-header">
-        <div class="form-title">New Invoice</div>
-        <div class="btn-close" onclick="closeAddModal()">✖</div>
-      </div>
-
-      <div class="scanner-box" onclick="document.getElementById('f-scan').click()">
-        <span class="scanner-icon" id="scan-icon">📄</span>
-        <div class="scanner-text" id="scan-text">Upload Image or PDF</div>
-        <div class="scanner-sub" id="scan-sub">AI will fill the fields below</div>
-      </div>
-      <input type="file" id="f-scan" accept="image/*,application/pdf" style="display:none" onchange="handleFileUpload(event)">
-
-      <div class="form-group"><div class="form-label">Vendor Name</div><input class="form-input" id="f-vendor" type="text" placeholder="e.g. Adobe"></div>
-      <div class="form-row">
-        <div class="form-group"><div class="form-label">Amount (€)</div><input class="form-input" id="f-amount" type="number" step="0.01"></div>
-        <div class="form-group"><div class="form-label">Due Date</div><input class="form-input" id="f-due" type="date"></div>
-      </div>
-      
-      <div class="form-group"><div class="form-label">Category</div>
-        <select class="form-input" id="f-category">
-          <option>Cloud Infrastructure</option><option>Real Estate</option><option>Design Tools</option>
-          <option>Communication</option><option>Subscription</option><option>Utilities</option><option>Other</option>
-        </select>
-      </div>
-      
-      <div class="toggle-switch">
-        <div><div class="form-label" style="margin:0">Recurring Payment</div><div style="font-size:11px;color:var(--text3)">Repeats every month</div></div>
-        <input type="checkbox" id="f-recurring" style="width:20px;height:20px;">
-      </div>
-
-      <button class="form-submit" onclick="saveInvoice()">Save Invoice</button>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="modal-detail">
-    <div class="modal-sheet">
-      <div class="modal-header">
-        <div class="form-title" id="d-title">Invoice</div>
-        <div class="btn-close" onclick="closeDetailModal()">✖</div>
-      </div>
-      <div id="detail-content"></div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast">✅ Saved</div>
 </div>
 
 <script>
-// --- STATE ---
 let invoices = JSON.parse(localStorage.getItem('bf_invoices')) || [];
-let income = parseFloat(localStorage.getItem('bf_income')) || 0;
-let chartInstance = null;
+let isCalendarView = false;
 
-// --- INITIALIZATION ---
-document.addEventListener('DOMContentLoaded', () => {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-  document.getElementById('income-input').value = income > 0 ? income : '';
-  refreshUI();
-});
-
-function saveState() {
-  localStorage.setItem('bf_invoices', JSON.stringify(invoices));
-  localStorage.setItem('bf_income', income.toString());
+function toggleView() {
+  isCalendarView = !isCalendarView;
   refreshUI();
 }
 
 function refreshUI() {
-  const pending = invoices.filter(i => i.status === 'pending');
-  const totalPending = pending.reduce((sum, i) => sum + parseFloat(i.amount), 0);
-  const highPriority = pending.filter(i => {
-    const days = (new Date(i.due) - new Date()) / 86400000;
-    return days <= 3;
-  }).length;
-
-  // Update Dashboard
-  document.getElementById('card-total').textContent = `€${totalPending.toFixed(2)}`;
-  document.getElementById('card-high').textContent = highPriority;
-  
-  const listEl = document.getElementById('invoice-list');
-  listEl.innerHTML = pending.length ? pending.sort((a,b)=>new Date(a.due)-new Date(b.due)).map(renderRow).join('') : '<div style="text-align:center;color:var(--text3);margin-top:20px;">No pending invoices!</div>';
-  
-  const archEl = document.getElementById('archive-list');
-  const paid = invoices.filter(i => i.status === 'paid');
-  archEl.innerHTML = paid.length ? paid.map(renderRow).join('') : '<div style="text-align:center;color:var(--text3);margin-top:20px;">Archive is empty.</div>';
-
-  // Update Insights
-  const totalSpent = invoices.reduce((sum, i) => sum + parseFloat(i.amount), 0);
-  const leftover = income - totalSpent;
-  const budgetEl = document.getElementById('budget-left');
-  budgetEl.textContent = `€${leftover.toFixed(2)}`;
-  budgetEl.style.color = leftover < 0 ? 'var(--red)' : 'var(--green)';
-
-  updateChart();
-}
-
-function renderRow(inv) {
-  const recurringBadge = inv.recurring ? '<span class="recurring-badge">🔄</span>' : '';
-  const opacity = inv.status === 'paid' ? '0.5' : '1';
-  return `
-    <div class="invoice-row" style="opacity:${opacity}" onclick="openDetail(${inv.id})">
-      <div class="inv-icon">📄</div>
-      <div class="inv-main">
-        <div class="inv-name">${inv.vendor} ${recurringBadge}</div>
-        <div class="inv-cat">${inv.category}</div>
-      </div>
-      <div class="inv-right">
-        <div class="inv-amount">€${parseFloat(inv.amount).toFixed(2)}</div>
-        <div class="inv-due">${new Date(inv.due).toLocaleDateString('en-GB')}</div>
-      </div>
-    </div>`;
-}
-
-// --- MODALS & NAVIGATION ---
-function switchScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + id).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  
-  // Highlight active bottom nav (if it exists)
-  const navMap = { 'dashboard': 0, 'insights': 1, 'settings': 3 };
-  if(navMap[id] !== undefined) {
-    document.querySelectorAll('.nav-item')[navMap[id]].classList.add('active');
+  const area = document.getElementById('display-area');
+  if (isCalendarView) {
+    // Calendar View: Sort by date
+    const sorted = [...invoices].sort((a,b) => new Date(a.due) - new Date(b.due));
+    area.innerHTML = sorted.map(i => `<div style="padding:15px; border-bottom:1px solid #333">${i.due} | ${i.vendor} - €${i.amount}</div>`).join('');
+  } else {
+    // List View
+    area.innerHTML = invoices.map(i => `<div style="padding:15px; background:#18181f; margin-bottom:5px; border-radius:10px">${i.vendor} - €${i.amount}</div>`).join('');
   }
 }
 
-function openAddModal() {
-  document.getElementById('f-vendor').value = '';
-  document.getElementById('f-amount').value = '';
-  document.getElementById('f-due').value = new Date().toISOString().split('T')[0];
-  document.getElementById('f-recurring').checked = false;
-  document.getElementById('modal-add').classList.add('open');
-}
-
-function closeAddModal() { document.getElementById('modal-add').classList.remove('open'); }
-function closeDetailModal() { document.getElementById('modal-detail').classList.remove('open'); }
-
-function openDetail(id) {
-  const inv = invoices.find(i => i.id === id);
-  const statusBtn = inv.status === 'pending' 
-    ? `<button class="form-submit" style="background:var(--green)" onclick="toggleStatus(${id})">Mark as Paid</button>`
-    : `<button class="form-submit" style="background:var(--orange)" onclick="toggleStatus(${id})">Revert to Pending</button>`;
-
-  document.getElementById('detail-content').innerHTML = `
-    <div style="font-size:32px; font-family:'DM Mono'; margin-bottom:20px;">€${parseFloat(inv.amount).toFixed(2)}</div>
-    <div style="color:var(--text2); margin-bottom:20px;">Due: ${inv.due} | Category: ${inv.category}</div>
-    ${statusBtn}
-    <button class="form-submit" style="background:var(--red-bg); color:var(--red); margin-top:10px;" onclick="deleteInvoice(${id})">Delete Invoice</button>
-  `;
-  document.getElementById('modal-detail').classList.add('open');
-}
-
-// --- DATA ACTIONS ---
 function saveInvoice() {
-  const vendor = document.getElementById('f-vendor').value || 'Unknown';
-  const amount = document.getElementById('f-amount').value || 0;
   const inv = {
     id: Date.now(),
-    vendor: vendor,
-    amount: amount,
+    vendor: document.getElementById('f-vendor').value,
+    amount: document.getElementById('f-amount').value,
     due: document.getElementById('f-due').value,
-    category: document.getElementById('f-category').value,
-    recurring: document.getElementById('f-recurring').checked,
+    iban: document.getElementById('f-iban').value, // NEW
+    exp: document.getElementById('f-exp').value,   // NEW
+    type: document.getElementById('f-type').value, // NEW
     status: 'pending'
   };
   invoices.push(inv);
-  saveState();
-  closeAddModal();
-  showToast("Invoice Added!");
-}
-
-function toggleStatus(id) {
-  const inv = invoices.find(i => i.id === id);
-  inv.status = inv.status === 'pending' ? 'paid' : 'pending';
-  saveState();
-  closeDetailModal();
-}
-
-function deleteInvoice(id) {
-  invoices = invoices.filter(i => i.id !== id);
-  saveState();
-  closeDetailModal();
-}
-
-function saveIncome() {
-  income = parseFloat(document.getElementById('income-input').value) || 0;
-  saveState();
-  showToast("Budget Updated!");
-}
-
-function confirmClearData() {
-  if(confirm("Delete all data?")) { invoices = []; income = 0; saveState(); showToast("Data cleared"); }
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
-}
-
-// --- CHART.JS ---
-function updateChart() {
-  const ctx = document.getElementById('categoryChart').getContext('2d');
-  
-  // Aggregate data
-  const catTotals = {};
-  invoices.forEach(inv => {
-    catTotals[inv.category] = (catTotals[inv.category] || 0) + parseFloat(inv.amount);
-  });
-  
-  const labels = Object.keys(catTotals);
-  const data = Object.values(catTotals);
-
-  if (chartInstance) chartInstance.destroy();
-
-  chartInstance = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: labels.length ? labels : ['No Data'],
-      datasets: [{
-        data: data.length ? data : [1],
-        backgroundColor: data.length ? ['#7b61ff', '#4f8ef7', '#2ecc7a', '#ff8c42', '#ff3b5c', '#f0f0f5'] : ['#18181f'],
-        borderWidth: 0
-      }]
-    },
-    options: { plugins: { legend: { position: 'bottom', labels: { color: '#f0f0f5' } } }, cutout: '70%' }
-  });
-}
-
-// --- PDF & IMAGE AI SCANNER ---
-async function handleFileUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  document.getElementById('scan-text').textContent = "Processing...";
-  document.getElementById('scan-sub').textContent = "Extracting text locally...";
-
-  try {
-    let imageUrl;
-    // If it's a PDF, render first page to canvas using PDF.js
-    if (file.type === "application/pdf") {
-      document.getElementById('scan-sub').textContent = "Converting PDF format...";
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument(new Uint8Array(arrayBuffer)).promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = viewport.width; canvas.height = viewport.height;
-      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-      imageUrl = canvas.toDataURL('image/png');
-    } else {
-      // It's a standard image
-      imageUrl = URL.createObjectURL(file);
-    }
-
-    document.getElementById('scan-sub').textContent = "Running OCR Engine...";
-    const worker = await Tesseract.createWorker('eng');
-    const { data: { text } } = await worker.recognize(imageUrl);
-    await worker.terminate();
-
-    parseOCR(text);
-    document.getElementById('scan-text').textContent = "Scan Complete!";
-    document.getElementById('scan-sub').textContent = "Data extracted successfully.";
-    showToast("AI Extraction Complete");
-
-  } catch(e) {
-    console.error(e);
-    document.getElementById('scan-text').textContent = "Scan Failed";
-    document.getElementById('scan-sub').textContent = "Please fill manually.";
-  }
-}
-
-function parseOCR(text) {
-  // Regex to find amounts
-  const amountMatch = text.match(/(?:total|amount|eur|due|€)\s*[:\s]*([0-9.,]+)/i) || text.match(/([0-9.,]+)\s*(?:eur|€)/i);
-  if (amountMatch) {
-    const cleanAmt = amountMatch[1].replace(/,/g, '');
-    if (!isNaN(parseFloat(cleanAmt))) document.getElementById('f-amount').value = parseFloat(cleanAmt).toFixed(2);
-  }
-  
-  // Date finding
-  const dateMatch = text.match(/([0-9]{2,4}[-\/.][0-9]{2}[-\/.][0-9]{2,4})/);
-  if (dateMatch) {
-    try {
-      let parts = dateMatch[1].split(/[-\/.]/);
-      let y = parts[0].length===4 ? parts[0] : parts[2];
-      let m = parts[0].length===4 ? parts[1] : parts[1];
-      let d = parts[0].length===4 ? parts[2] : parts[0];
-      document.getElementById('f-due').value = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-    } catch(e){}
-  }
+  localStorage.setItem('bf_invoices', JSON.stringify(invoices));
+  refreshUI();
 }
 </script>
+
 </body>
 </html>

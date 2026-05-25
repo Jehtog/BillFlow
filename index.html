@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BillFlow">
+<meta name="theme-color" content="#0a0a0f">
+<title>BillFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #18181f;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f0f5;
+    --text2: rgba(240,240,245,0.5);
+    --text3: rgba(240,240,245,0.28);
+    --red: #ff3b5c;
+    --orange: #ff8c42;
+    --green: #2ecc7a;
+    --blue: #4f8ef7;
+    --accent: #7b61ff;
+    --red-bg: rgba(255,59,92,0.12);
+    --orange-bg: rgba(255,140,66,0.12);
+    --green-bg: rgba(46,204,122,0.12);
+    --blue-bg: rgba(79,142,247,0.12);
+    --radius: 18px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html, body {
+    height: 100%; background: var(--bg);
+    color: var(--text); font-family: 'Outfit', sans-serif;
+    overflow: hidden; overscroll-behavior: none;
+  }
+
+  #app { height: 100vh; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; position: relative; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+  .screen.active { display: flex; }
+
+  .scroll-body {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; padding-bottom: 90px;
+  }
+  .scroll-body::-webkit-scrollbar { display: none; }
+
+  /* ── STATUS BAR ── */
+  .statusbar {
+    padding: calc(var(--safe-top) + 12px) 20px 0;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--text2); font-weight: 500; flex-shrink: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    padding: 10px 20px 16px; display: flex;
+    justify-content: space-between; align-items: flex-end; flex-shrink: 0;
+  }
+  .header-title { font-family: 'DM Serif Display', serif; font-size: 34px; color: var(--text); line-height: 1; }
+  .header-sub { font-size: 12px; color: var(--text3); margin-top: 2px; font-weight: 400; }
+  .header-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--border2);
+    background: var(--bg3); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 17px; transition: all 0.15s; flex-shrink: 0;
+  }
+  .icon-btn:active { transform: scale(0.9); background: var(--bg2); }
+
+  /* ── SUMMARY CARDS ── */
+  .cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 16px; }
+  .summary-card {
+    border-radius: var(--radius); padding: 16px; border: 1px solid var(--border);
+    position: relative; overflow: hidden; cursor: default;
+  }
+  .summary-card::before {
+    content: ''; position: absolute; inset: 0; opacity: 0.06;
+    background: radial-gradient(circle at 20% 50%, currentColor 0%, transparent 70%);
+  }
+  .card-icon { font-size: 22px; margin-bottom: 8px; }
+  .card-val { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .card-label { font-size: 11px; color: var(--text2); margin-top: 1px; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; }
+  .card-sub { font-size: 11px; margin-top: 3px; font-weight: 600; }
+  .card-blue { background: var(--blue-bg); color: var(--blue); }
+  .card-red { background: var(--red-bg); color: var(--red); }
+
+  /* ── SECTION HEADER ── */
+  .section-hd {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 16px 10px;
+  }
+  .section-title { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+  .section-action { font-size: 13px; color: var(--blue); font-weight: 600; cursor: pointer; }
+
+  /* ── CALENDAR ── */
+  .calendar-wrap {
+    margin: 0 16px 20px;
+    background: var(--bg3); border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 14px;
+  }
+  .cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .cal-month { font-family: 'DM Serif Display', serif; font-size: 18px; }
+  .cal-arrow { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; transition: all 0.15s; }
+  .cal-arrow:active { transform: scale(0.88); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-dow { text-align: center; font-size: 10px; color: var(--text3); font-weight: 700; letter-spacing: 0.05em; padding-bottom: 6px; text-transform: uppercase; }
+  .cal-day {
+    aspect-ratio: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; border-radius: 10px; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--text2);
+    transition: all 0.15s; position: relative; gap: 2px;
+  }
+  .cal-day:active { transform: scale(0.85); }
+  .cal-day.today { background: var(--blue); color: #fff; font-weight: 700; }
+  .cal-day.has-invoice { color: var(--text); }
+  .cal-day.selected:not(.today) { background: rgba(255,255,255,0.08); color: var(--text); }
+  .cal-day.other-month { color: var(--text3); }
+  .cal-dots { display: flex; gap: 2px; position: absolute; bottom: 3px; }
+  .cal-dot { width: 4px; height: 4px; border-radius: 50%; }
+
+  /* ── SORT TABS ── */
+  .sort-tabs { display: flex; background: var(--bg3); border-radius: 10px; padding: 3px; border: 1px solid var(--border); }
+  .sort-tab { flex: 1; text-align: center; padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text3); transition: all 0.2s; }
+  .sort-tab.active { background: var(--bg2); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+
+  /* ── INVOICE ROW ── */
+  .invoice-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+  .invoice-row {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: all 0.15s; position: relative;
+    border-left-width: 3px;
+  }
+  .invoice-row:active { transform: scale(0.985); }
+  .invoice-row.urgency-high { border-left-color: var(--red); }
+  .invoice-row.urgency-medium { border-left-color: var(--orange); }
+  .invoice-row.urgency-low { border-left-color: var(--green); }
+  .invoice-row.paid { border-left-color: var(--green); opacity: 0.7; }
+  .inv-icon {
+    width: 44px; height: 44px; border-radius: 13px; flex-shrink: 0;
+    background: var(--bg2); border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center; font-size: 21px;
+  }
+  .inv-main { flex: 1; min-width: 0; }
+  .inv-name-row { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+  .inv-name { font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .urgency-badge {
+    font-size: 8px; font-weight: 800; letter-spacing: 0.08em;
+    padding: 2px 6px; border-radius: 5px; flex-shrink: 0; text-transform: uppercase;
+  }
+  .badge-high { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,59,92,0.25); }
+  .badge-medium { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(255,140,66,0.25); }
+  .badge-low { background: var(--green-bg); color: var(--green); border: 1px solid rgba(46,204,122,0.25); }
+  .inv-cat { font-size: 11px; color: var(--text3); }
+  .inv-right { text-align: right; flex-shrink: 0; }
+  .inv-amount { font-size: 17px; font-weight: 750; letter-spacing: -0.5px; font-family: 'DM Mono', monospace; }
+  .inv-due { font-size: 11px; margin-top: 2px; font-weight: 500; }
+  .due-urgent { color: var(--red); }
+  .due-soon { color: var(--orange); }
+  .due-ok { color: var(--text3); }
+  .due-paid { color: var(--green); }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(10,10,15,0.92); backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    padding: 10px 0 calc(var(--safe-bottom) + 10px);
+    display: flex; justify-content: space-around; align-items: center;
+    z-index: 50; flex-shrink: 0;
+  }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 16px; }
+  .nav-icon { font-size: 22px; transition: transform 0.15s; }
+  .nav-item:active .nav-icon { transform: scale(0.85); }
+  .nav-label { font-size: 9px; font-weight: 600; color: var(--text3); letter-spacing: 0.04em; text-transform: uppercase; }
+  .nav-item.active .nav-label { color: var(--blue); }
+  .nav-item.active .nav-icon { filter: drop-shadow(0 0 6px var(--blue)); }
+  .nav-add {
+    width: 52px; height: 52px; border-radius: 16px; cursor: pointer;
+    background: linear-gradient(135deg, var(--blue), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 300; color: #fff;
+    box-shadow: 0 4px 20px rgba(79,142,247,0.4);
+    transition: all 0.15s; margin-top: -10px;
+  }
+  .nav-add:active { transform: scale(0.9); }
+
+  /* ── MODAL OVERLAY ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal-sheet {
+    width: 100%; max-width: 480px; background: #15151e;
+    border-radius: 28px 28px 0 0; border: 1px solid var(--border2);
+    border-bottom: none; padding: 12px 20px calc(var(--safe-bottom) + 32px);
+    transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.32,0.72,0,1);
+    max-height: 92vh; overflow-y: auto;
+  }
+  .modal-overlay.open .modal-sheet { transform: translateY(0); }
+  .modal-handle { width: 36px; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; margin: 0 auto 20px; }
+
+  /* ── DETAIL SHEET ── */
+  .detail-hero {
+    border-radius: 20px; padding: 20px; margin-bottom: 16px;
+    border: 1px solid var(--border2);
+  }
+  .detail-hero-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .detail-emoji { font-size: 32px; margin-bottom: 8px; }
+  .detail-vendor { font-family: 'DM Serif Display', serif; font-size: 26px; }
+  .detail-category { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .detail-amount { font-size: 30px; font-weight: 800; letter-spacing: -1px; font-family: 'DM Mono', monospace; }
+  .detail-due { font-size: 13px; font-weight: 600; margin-top: 4px; }
+  .copy-field {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 14px;
+    padding: 13px 14px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .copy-field-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; font-weight: 600; }
+  .copy-field-val { font-size: 13px; font-family: 'DM Mono', monospace; color: var(--text); letter-spacing: 0.02em; }
+  .copy-btn {
+    background: var(--bg2); border: 1px solid var(--border2); color: var(--text2);
+    border-radius: 10px; padding: 7px 12px; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; flex-shrink: 0; font-family: 'Outfit', sans-serif;
+  }
+  .copy-btn:active { transform: scale(0.9); }
+  .copy-btn.copied { background: var(--green-bg); color: var(--green); border-color: rgba(46,204,122,0.3); }
+  .doc-preview {
+    background: var(--bg3); border: 1px dashed var(--border2); border-radius: 14px;
+    padding: 24px; text-align: center; margin-bottom: 14px; cursor: pointer;
+  }
+  .doc-preview-icon { font-size: 32px; margin-bottom: 6px; }
+  .doc-preview-text { font-size: 12px; color: var(--text3); }
+  .status-toggle {
+    width: 100%; padding: 17px; border-radius: 16px; border: none;
+    font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    font-family: 'Outfit', sans-serif; letter-spacing: -0.2px;
+  }
+  .status-toggle.mark-paid { background: linear-gradient(135deg, #2ecc7a, #27ae60); color: #fff; box-shadow: 0 4px 20px rgba(46,204,122,0.3); }
+  .status-toggle.mark-pending { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(255,140,66,0.2); }
+  .status-toggle:active { transform: scale(0.97); }
+
+  /* ── ADD FORM ── */
+  .form-title { font-family: 'DM Serif Display', serif; font-size: 26px; margin-bottom: 6px; }
+  .form-sub { font-size: 13px; color: var(--text3); margin-bottom: 22px; }
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 11px; color: var(--text3); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
+  .form-input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: 14px; padding: 13px 14px; color: var(--text);
+    font-size: 15px; font-family: 'Outfit', sans-serif; outline: none;
+    transition: border-color 0.2s; appearance: none;
+  }
+  .form-input:focus { border-color: var(--blue); }
+  .form-input::placeholder { color: var(--text3); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .urgency-picker { display: flex; gap: 8px; }
+  .urgency-opt {
+    flex: 1; padding: 10px; border-radius: 12px; border: 1px solid var(--border);
+    text-align: center; cursor: pointer; font-size: 12px; font-weight: 600;
+    transition: all 0.2s; background: var(--bg3);
+  }
+  .urgency-opt.sel-high { background: var(--red-bg); border-color: rgba(255,59,92,0.4); color: var(--red); }
+  .urgency-opt.sel-medium { background: var(--orange-bg); border-color: rgba(255,140,66,0.4); color: var(--orange); }
+  .urgency-opt.sel-low { background: var(--green-bg); border-color: rgba(46,204,122,0.4); color: var(--green); }
+  .urgency-opt:not([class*="sel-"]) { color: var(--text3); }
+  .form-submit {
+    width: 100%; padding: 17px; border-radius: 16px; border: none; margin-top: 8px;
+    background: linear-gradient(135deg, var(--blue), var(--accent));
+    color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+    font-family: 'Outfit', sans-serif; box-shadow: 0 4px 20px rgba(79,142,247,0.35);
+    transition: all 0.15s;
+  }
+  .form-submit:active { transform: scale(0.97); }
+  .category-select { width: 100%; }
+
+  /* ── EMPTY STATE ── */
+  .empty { text-align: center; padding: 48px 24px; }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-title { font-family: 'DM Serif Display', serif; font-size: 22px; margin-bottom: 6px; }
+  .empty-sub { font-size: 13px; color: var(--text3); }
+
+  /* ── ANIMATE IN ── */
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .anim { animation: slideUp 0.35s cubic-bezier(0.32,0.72,0,1) both; }
+  .anim-d1 { animation-delay: 0.05s; }
+  .anim-d2 { animation-delay: 0.1s; }
+  .anim-d3 { animation-delay: 0.15s; }
+  .anim-d4 { animation-delay: 0.2s; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1e1e2a; border: 1px solid var(--border2); border-radius: 14px;
+    padding: 10px 18px; font-size: 13px; font-weight: 600; color: var(--text);
+    opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 500; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Settings screen */
+  .settings-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+  .settings-item {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 15px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+  }
+  .settings-item:active { transform: scale(0.98); }
+  .settings-icon { font-size: 20px; width: 36px; text-align: center; }
+  .settings-text { flex: 1; }
+  .settings-label { font-size: 15px; font-weight: 600; }
+  .settings-desc { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .settings-arrow { color: var(--text3); font-size: 14px; }
+  .settings-group-label { font-size: 11px; color: var(--text3); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 16px 16px 8px; }
+
+  select option { background: #1a1a24; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════ DASHBOARD SCREEN ══════════════ -->
+  <div class="screen active" id="screen-dashboard">
+    <div class="statusbar">
+      <span id="clock">9:41</span>
+      <span>●●● ▲</span>
+    </div>
+    <div class="header">
+      <div>
+        <div class="header-title">BillFlow</div>
+        <div class="header-sub" id="header-date">Loading...</div>
+      </div>
+      <div class="header-actions">
+        <div class="icon-btn" onclick="showToast('🔔 Notifications enabled')">🔔</div>
+      </div>
+    </div>
+    <div class="scroll-body" id="dashboard-scroll">
+      <!-- Summary Cards -->
+      <div class="cards-row anim">
+        <div class="summary-card card-blue">
+          <div class="card-icon">💳</div>
+          <div class="card-val" id="card-total">€0</div>
+          <div class="card-label">Pending</div>
+          <div class="card-sub" id="card-count" style="color:var(--blue)">0 invoices</div>
+        </div>
+        <div class="summary-card card-red">
+          <div class="card-icon">🚨</div>
+          <div class="card-val" id="card-high">0</div>
+          <div class="card-label">High Priority</div>
+          <div class="card-sub" style="color:var(--red)" id="card-high-sub">All clear</div>
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div class="section-hd anim anim-d1">
+        <div class="section-title">Calendar</div>
+        <div class="section-action" id="cal-month-label">May 2026</div>
+      </div>
+      <div class="calendar-wrap anim anim-d2">
+        <div class="cal-nav">
+          <div class="cal-arrow" onclick="changeMonth(-1)">‹</div>
+          <div class="cal-month" id="cal-title">May 2026</div>
+          <div class="cal-arrow" onclick="changeMonth(1)">›</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+
+      <!-- Invoice List -->
+      <div class="section-hd anim anim-d3">
+        <div class="section-title">Invoices</div>
+        <div style="display:flex;gap:6px">
+          <div class="sort-tabs">
+            <div class="sort-tab active" id="tab-date" onclick="setSort('date')">⏱ Due</div>
+            <div class="sort-tab" id="tab-amount" onclick="setSort('amount')">💰 Amt</div>
+          </div>
+        </div>
+      </div>
+      <div class="invoice-list anim anim-d4" id="invoice-list"></div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-item active" onclick="switchScreen('dashboard')">
+        <div class="nav-icon">📊</div><div class="nav-label">Dashboard</div>
+      </div>
+      <div class="nav-item" onclick="switchScreen('calendar')">
+        <div class="nav-icon">📅</div><div class="nav-label">Calendar</div>
+      </div>
+      <div class="nav-add" onclick="openAdd()">＋</div>
+      <div class="nav-item" onclick="switchScreen('archive')">
+        <div class="nav-icon">📁</div><div class="nav-label">Archive</div>
+      </div>
+      <div class="nav-item" onclick="switchScreen('settings')">
+        <div class="nav-icon">⚙️</div><div class="nav-label">Settings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ CALENDAR SCREEN ══════════════ -->
+  <div class="screen" id="screen-calendar">
+    <div class="statusbar"><span id="clock2">9:41</span><span>●●● ▲</span></div>
+    <div class="header">
+      <div><div class="header-title">Calendar</div><div class="header-sub">Monthly overview</div></div>
+    </div>
+    <div class="scroll-body">
+      <div class="calendar-wrap" style="margin:0 16px 20px">
+        <div class="cal-nav">
+          <div class="cal-arrow" onclick="changeMonth(-1)">‹</div>
+          <div class="cal-month" id="cal-title2">May 2026</div>
+          <div class="cal-arrow" onclick="changeMonth(1)">›</div>
+        </div>
+        <div class="cal-grid" id="cal-grid2"></div>
+      </div>
+      <div class="section-hd"><div class="section-title" id="cal-day-title">All Invoices</div></div>
+      <div class="invoice-list" id="cal-invoice-list"></div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-item" onclick="switchScreen('dashboard')"><div class="nav-icon">📊</div><div class="nav-label">Dashboard</div></div>
+      <div class="nav-item active" onclick="switchScreen('calendar')"><div class="nav-icon">📅</div><div class="nav-label">Calendar</div></div>
+      <div class="nav-add" onclick="openAdd()">＋</div>
+      <div class="nav-item" onclick="switchScreen('archive')"><div class="nav-icon">📁</div><div class="nav-label">Archive</div></div>
+      <div class="nav-item" onclick="switchScreen('settings')"><div class="nav-icon">⚙️</div><div class="nav-label">Settings</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ ARCHIVE SCREEN ══════════════ -->
+  <div class="screen" id="screen-archive">
+    <div class="statusbar"><span>9:41</span><span>●●● ▲</span></div>
+    <div class="header"><div><div class="header-title">Archive</div><div class="header-sub">Paid invoices</div></div></div>
+    <div class="scroll-body">
+      <div class="invoice-list" id="archive-list"></div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-item" onclick="switchScreen('dashboard')"><div class="nav-icon">📊</div><div class="nav-label">Dashboard</div></div>
+      <div class="nav-item" onclick="switchScreen('calendar')"><div class="nav-icon">📅</div><div class="nav-label">Calendar</div></div>
+      <div class="nav-add" onclick="openAdd()">＋</div>
+      <div class="nav-item active" onclick="switchScreen('archive')"><div class="nav-icon">📁</div><div class="nav-label">Archive</div></div>
+      <div class="nav-item" onclick="switchScreen('settings')"><div class="nav-icon">⚙️</div><div class="nav-label">Settings</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SETTINGS SCREEN ══════════════ -->
+  <div class="screen" id="screen-settings">
+    <div class="statusbar"><span>9:41</span><span>●●● ▲</span></div>
+    <div class="header"><div><div class="header-title">Settings</div><div class="header-sub">BillFlow preferences</div></div></div>
+    <div class="scroll-body">
+      <div class="settings-group-label">General</div>
+      <div class="settings-list">
+        <div class="settings-item" onclick="showToast('🔔 Notifications are on')">
+          <div class="settings-icon">🔔</div>
+          <div class="settings-text"><div class="settings-label">Push Notifications</div><div class="settings-desc">3-day and 1-day reminders</div></div>
+          <div class="settings-arrow">›</div>
+        </div>
+        <div class="settings-item" onclick="showToast('💱 Currency saved')">
+          <div class="settings-icon">💱</div>
+          <div class="settings-text"><div class="settings-label">Default Currency</div><div class="settings-desc">EUR — Euro</div></div>
+          <div class="settings-arrow">›</div>
+        </div>
+        <div class="settings-item" onclick="showToast('📅 Format saved')">
+          <div class="settings-icon">📅</div>
+          <div class="settings-text"><div class="settings-label">Date Format</div><div class="settings-desc">DD/MM/YYYY</div></div>
+          <div class="settings-arrow">›</div>
+        </div>
+      </div>
+      <div class="settings-group-label">Privacy</div>
+      <div class="settings-list">
+        <div class="settings-item" onclick="showToast('🔒 All data is stored locally')">
+          <div class="settings-icon">🔒</div>
+          <div class="settings-text"><div class="settings-label">Data Storage</div><div class="settings-desc">100% on-device — never uploaded</div></div>
+          <div class="settings-arrow">›</div>
+        </div>
+        <div class="settings-item" onclick="exportData()">
+          <div class="settings-icon">📤</div>
+          <div class="settings-text"><div class="settings-label">Export Data</div><div class="settings-desc">Download as JSON</div></div>
+          <div class="settings-arrow">›</div>
+        </div>
+        <div class="settings-item" onclick="confirmClearData()">
+          <div class="settings-icon">🗑️</div>
+          <div class="settings-text"><div class="settings-label" style="color:var(--red)">Clear All Data</div><div class="settings-desc">Permanently delete all invoices</div></div>
+          <div class="settings-arrow">›</div>
+        </div>
+      </div>
+      <div class="settings-group-label">About</div>
+      <div class="settings-list">
+        <div class="settings-item">
+          <div class="settings-icon">ℹ️</div>
+          <div class="settings-text"><div class="settings-label">Version</div><div class="settings-desc">BillFlow 1.0.0 PWA</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-item" onclick="switchScreen('dashboard')"><div class="nav-icon">📊</div><div class="nav-label">Dashboard</div></div>
+      <div class="nav-item" onclick="switchScreen('calendar')"><div class="nav-icon">📅</div><div class="nav-label">Calendar</div></div>
+      <div class="nav-add" onclick="openAdd()">＋</div>
+      <div class="nav-item" onclick="switchScreen('archive')"><div class="nav-icon">📁</div><div class="nav-label">Archive</div></div>
+      <div class="nav-item active" onclick="switchScreen('settings')"><div class="nav-icon">⚙️</div><div class="nav-label">Settings</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ DETAIL MODAL ══════════════ -->
+  <div class="modal-overlay" id="modal-detail" onclick="closeDetail(event)">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div id="detail-content"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ ADD MODAL ══════════════ -->
+  <div class="modal-overlay" id="modal-add" onclick="closeAdd(event)">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="form-title">New Invoice</div>
+      <div class="form-sub">Enter invoice details below</div>
+
+      <div class="form-group">
+        <div class="form-label">Vendor / Payee</div>
+        <input class="form-input" id="f-vendor" placeholder="e.g. AWS, Office Lease…" type="text">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Amount</div>
+          <input class="form-input" id="f-amount" placeholder="0.00" type="number" step="0.01" min="0">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Currency</div>
+          <select class="form-input category-select" id="f-currency">
+            <option value="EUR">€ EUR</option>
+            <option value="USD">$ USD</option>
+            <option value="GBP">£ GBP</option>
+            <option value="CHF">₣ CHF</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Due Date</div>
+        <input class="form-input" id="f-due" type="date">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Category</div>
+        <select class="form-input category-select" id="f-category">
+          <option value="Cloud Infrastructure">☁️ Cloud Infrastructure</option>
+          <option value="Real Estate">🏢 Real Estate / Rent</option>
+          <option value="Design Tools">🎨 Design Tools</option>
+          <option value="Communication">💬 Communication</option>
+          <option value="Subscription">🔄 Subscription</option>
+          <option value="Utilities">⚡ Utilities</option>
+          <option value="Insurance">🛡️ Insurance</option>
+          <option value="Taxes">📄 Taxes</option>
+          <option value="Other">📦 Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">IBAN (optional)</div>
+        <input class="form-input" id="f-iban" placeholder="e.g. BE68 5390 0754 7034" type="text">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Reference / Structured Comm. (optional)</div>
+        <input class="form-input" id="f-ref" placeholder="e.g. +++123/4567/89012+++" type="text">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Priority</div>
+        <div class="urgency-picker">
+          <div class="urgency-opt" id="u-high" onclick="selectUrgency('high')">🔴 High</div>
+          <div class="urgency-opt sel-medium" id="u-medium" onclick="selectUrgency('medium')">🟡 Medium</div>
+          <div class="urgency-opt" id="u-low" onclick="selectUrgency('low')">🟢 Low</div>
+        </div>
+      </div>
+      <button class="form-submit" onclick="saveInvoice()">Add Invoice</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+const CATEGORY_ICONS = {
+  'Cloud Infrastructure':'☁️','Real Estate':'🏢','Design Tools':'🎨',
+  'Communication':'💬','Subscription':'🔄','Utilities':'⚡',
+  'Insurance':'🛡️','Taxes':'📄','Other':'📦'
+};
+
+const CURRENCY_SYMBOLS = { EUR:'€', USD:'$', GBP:'£', CHF:'₣' };
+
+let invoices = JSON.parse(localStorage.getItem('bf_invoices') || 'null') || [
+  { id:1, vendor:'AWS', amount:2840.00, currency:'EUR', due:'2026-05-27', category:'Cloud Infrastructure', status:'pending', urgency:'high', iban:'BE68 5390 0754 7034', ref:'+++123/4567/89012+++' },
+  { id:2, vendor:'Office Lease', amount:5200.00, currency:'EUR', due:'2026-05-28', category:'Real Estate', status:'pending', urgency:'high', iban:'BE71 3100 4768 2494', ref:'+++987/6543/21098+++' },
+  { id:3, vendor:'Figma', amount:75.00, currency:'EUR', due:'2026-06-03', category:'Design Tools', status:'pending', urgency:'medium', iban:'NL91 ABNA 0417 1643 00', ref:'FIG-2026-05481' },
+  { id:4, vendor:'Heroku', amount:490.50, currency:'EUR', due:'2026-06-08', category:'Cloud Infrastructure', status:'pending', urgency:'medium', iban:'DE89 3704 0044 0532 0130 00', ref:'HRK-INV-00291' },
+  { id:5, vendor:'Adobe CC', amount:119.99, currency:'EUR', due:'2026-05-20', category:'Design Tools', status:'paid', urgency:'low', iban:'GB29 NWBK 6016 1331 9268 19', ref:'ADO-2026-00882' },
+  { id:6, vendor:'Slack', amount:87.50, currency:'EUR', due:'2026-05-15', category:'Communication', status:'paid', urgency:'low', iban:'FR76 3000 6000 0112 3456 7890 189', ref:'SLK-INV-20260515' },
+];
+
+let calViewDate = new Date(2026, 4, 1);
+let sortMode = 'date';
+let selectedCalDay = null;
+let selectedUrgency = 'medium';
+let nextId = Math.max(...invoices.map(i=>i.id), 0) + 1;
+
+function save() { localStorage.setItem('bf_invoices', JSON.stringify(invoices)); }
+
+// ══════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════
+function daysUntil(dateStr) {
+  const due = new Date(dateStr + 'T00:00:00');
+  const now = new Date(); now.setHours(0,0,0,0);
+  return Math.round((due - now) / 86400000);
+}
+
+function effectiveUrgency(inv) {
+  if (inv.status === 'paid') return inv.urgency;
+  const d = daysUntil(inv.due);
+  if (d <= 2 && d >= 0) return 'high';
+  return inv.urgency;
+}
+
+function dueLabel(inv) {
+  if (inv.status === 'paid') return 'Paid';
+  const d = daysUntil(inv.due);
+  if (d < 0) return `${Math.abs(d)}d overdue`;
+  if (d === 0) return 'Due Today!';
+  return `Due in ${d}d`;
+}
+
+function dueCls(inv) {
+  if (inv.status === 'paid') return 'due-paid';
+  const d = daysUntil(inv.due);
+  if (d < 0 || d === 0) return 'due-urgent';
+  if (d <= 3) return 'due-soon';
+  return 'due-ok';
+}
+
+function fmt(amount, currency) {
+  const sym = CURRENCY_SYMBOLS[currency] || currency;
+  return sym + Number(amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function formatDate(str) {
+  const d = new Date(str + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+}
+
+// ══════════════════════════════════════
+//  RENDER INVOICE ROW
+// ══════════════════════════════════════
+function invoiceRowHTML(inv) {
+  const urg = effectiveUrgency(inv);
+  const badgeCls = `urgency-badge badge-${urg}`;
+  const rowCls = inv.status === 'paid' ? 'invoice-row paid' : `invoice-row urgency-${urg}`;
+  return `
+    <div class="${rowCls}" onclick="openDetail(${inv.id})">
+      <div class="inv-icon">${CATEGORY_ICONS[inv.category]||'📄'}</div>
+      <div class="inv-main">
+        <div class="inv-name-row">
+          <div class="inv-name">${inv.vendor}</div>
+          <span class="${badgeCls}">${urg.toUpperCase()}</span>
+        </div>
+        <div class="inv-cat">${inv.category}</div>
+      </div>
+      <div class="inv-right">
+        <div class="inv-amount">${fmt(inv.amount, inv.currency)}</div>
+        <div class="inv-due ${dueCls(inv)}">${dueLabel(inv)}</div>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════
+function renderDashboard() {
+  const pending = invoices.filter(i => i.status === 'pending');
+  const total = pending.reduce((s,i) => s + Number(i.amount), 0);
+  const highCount = pending.filter(i => effectiveUrgency(i) === 'high').length;
+
+  document.getElementById('card-total').textContent = '€' + total.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+  document.getElementById('card-count').textContent = `${pending.length} invoice${pending.length!==1?'s':''}`;
+  document.getElementById('card-high').textContent = highCount;
+  document.getElementById('card-high-sub').textContent = highCount > 0 ? 'Need attention' : 'All clear ✓';
+
+  const sorted = [...invoices].filter(i => i.status === 'pending');
+  if (sortMode === 'date') sorted.sort((a,b) => new Date(a.due) - new Date(b.due));
+  else sorted.sort((a,b) => b.amount - a.amount);
+
+  const list = document.getElementById('invoice-list');
+  if (sorted.length === 0) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🎉</div><div class="empty-title">All clear!</div><div class="empty-sub">No pending invoices. Tap + to add one.</div></div>`;
+  } else {
+    list.innerHTML = sorted.map(invoiceRowHTML).join('');
+  }
+
+  renderCalendar('cal-grid', 'cal-title');
+  updateClock();
+}
+
+// ══════════════════════════════════════
+//  CALENDAR
+// ══════════════════════════════════════
+function renderCalendar(gridId, titleId) {
+  const y = calViewDate.getFullYear(), m = calViewDate.getMonth();
+  const title = calViewDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  [document.getElementById(titleId), document.getElementById('cal-month-label'),
+   document.getElementById('cal-title2')].forEach(el => { if(el) el.textContent = title; });
+
+  const first = new Date(y, m, 1).getDay(); // 0=Sun
+  const offset = (first + 6) % 7; // Mon-based
+  const days = new Date(y, m+1, 0).getDate();
+  const today = new Date();
+
+  // Build dot map for this month
+  const dotMap = {};
+  invoices.forEach(inv => {
+    const d = new Date(inv.due + 'T00:00:00');
+    if (d.getFullYear() === y && d.getMonth() === m) {
+      const day = d.getDate();
+      if (!dotMap[day]) dotMap[day] = [];
+      const color = inv.status === 'paid' ? '#2ecc7a' : (effectiveUrgency(inv) === 'high' ? '#ff3b5c' : '#ff8c42');
+      dotMap[day].push(color);
+    }
+  });
+
+  const grid = document.getElementById(gridId);
+  const dows = ['M','T','W','T','F','S','S'];
+  let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  for (let i = 0; i < offset; i++) html += '<div></div>';
+  for (let d = 1; d <= days; d++) {
+    const isToday = today.getFullYear()===y && today.getMonth()===m && today.getDate()===d;
+    const hasDots = dotMap[d];
+    const isSel = selectedCalDay === d && document.getElementById('screen-calendar').classList.contains('active');
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (hasDots) cls += ' has-invoice';
+    if (isSel && !isToday) cls += ' selected';
+    const dots = hasDots ? `<div class="cal-dots">${hasDots.slice(0,3).map(c=>`<div class="cal-dot" style="background:${c}"></div>`).join('')}</div>` : '';
+    html += `<div class="${cls}" onclick="calDayClick(${d})">${d}${dots}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function calDayClick(d) {
+  selectedCalDay = d;
+  renderCalendar('cal-grid2', 'cal-title2');
+  const y = calViewDate.getFullYear(), m = calViewDate.getMonth();
+  const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const filtered = invoices.filter(i => i.due === dateStr);
+  const titleEl = document.getElementById('cal-day-title');
+  if (titleEl) titleEl.textContent = filtered.length ? `${filtered.length} invoice${filtered.length!==1?'s':''} on ${d} ${calViewDate.toLocaleDateString('en-US',{month:'short'})}` : 'No invoices';
+  const listEl = document.getElementById('cal-invoice-list');
+  if (listEl) listEl.innerHTML = filtered.length ? filtered.map(invoiceRowHTML).join('') : `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Nothing due</div><div class="empty-sub">No invoices on this date.</div></div>`;
+}
+
+function changeMonth(dir) {
+  calViewDate.setMonth(calViewDate.getMonth() + dir);
+  selectedCalDay = null;
+  const isCalScreen = document.getElementById('screen-calendar').classList.contains('active');
+  renderCalendar('cal-grid', 'cal-title');
+  if (isCalScreen) {
+    renderCalendar('cal-grid2', 'cal-title2');
+    const listEl = document.getElementById('cal-invoice-list');
+    if (listEl) listEl.innerHTML = '';
+    const titleEl = document.getElementById('cal-day-title');
+    if (titleEl) titleEl.textContent = 'Tap a day';
+  }
+}
+
+// ══════════════════════════════════════
+//  ARCHIVE
+// ══════════════════════════════════════
+function renderArchive() {
+  const paid = invoices.filter(i => i.status === 'paid').sort((a,b) => new Date(b.due) - new Date(a.due));
+  const el = document.getElementById('archive-list');
+  if (!paid.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">No paid invoices</div><div class="empty-sub">Paid invoices will appear here.</div></div>`;
+  } else {
+    el.innerHTML = paid.map(invoiceRowHTML).join('');
+  }
+}
+
+// ══════════════════════════════════════
+//  DETAIL
+// ══════════════════════════════════════
+function openDetail(id) {
+  const inv = invoices.find(i => i.id === id);
+  if (!inv) return;
+  const urg = effectiveUrgency(inv);
+  const urgColors = { high:'var(--red)', medium:'var(--orange)', low:'var(--green)' };
+  const urgBgs = { high:'var(--red-bg)', medium:'var(--orange-bg)', low:'var(--green-bg)' };
+  const d = daysUntil(inv.due);
+  let dueStr = inv.status==='paid' ? 'Paid ✓' : d===0 ? '🔥 Due Today!' : d<0 ? `${Math.abs(d)} days overdue` : `Due in ${d} day${d!==1?'s':''}`;
+
+  const ibanRow = inv.iban ? `
+    <div class="copy-field">
+      <div><div class="copy-field-label">IBAN</div><div class="copy-field-val">${inv.iban}</div></div>
+      <button class="copy-btn" id="cp-iban-${id}" onclick="copyField('${inv.iban}','cp-iban-${id}')">Copy</button>
+    </div>` : '';
+  const refRow = inv.ref ? `
+    <div class="copy-field">
+      <div><div class="copy-field-label">Reference</div><div class="copy-field-val">${inv.ref}</div></div>
+      <button class="copy-btn" id="cp-ref-${id}" onclick="copyField('${inv.ref}','cp-ref-${id}')">Copy</button>
+    </div>` : '';
+
+  const toggleLabel = inv.status === 'paid' ? '↩ Mark as Pending' : '✓ Mark as Paid';
+  const toggleCls = inv.status === 'paid' ? 'status-toggle mark-pending' : 'status-toggle mark-paid';
+
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-hero" style="background:${urgBgs[urg]};border-color:${urgColors[urg]}30">
+      <div class="detail-hero-top">
+        <div>
+          <div class="detail-emoji">${CATEGORY_ICONS[inv.category]||'📄'}</div>
+          <div class="detail-vendor">${inv.vendor}</div>
+          <div class="detail-category">${inv.category}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="detail-amount">${fmt(inv.amount,inv.currency)}</div>
+          <div class="detail-due" style="color:${urgColors[urg]}">${dueStr}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">${formatDate(inv.due)}</div>
+        </div>
+      </div>
+    </div>
+    ${ibanRow}${refRow}
+    <div class="doc-preview">
+      <div class="doc-preview-icon">📄</div>
+      <div class="doc-preview-text">Document preview<br><small>Upload feature available in native app</small></div>
+    </div>
+    <button class="${toggleCls}" onclick="toggleStatus(${id})">${toggleLabel}</button>
+    <div style="text-align:center;margin-top:12px">
+      <span style="color:var(--red);font-size:13px;font-weight:600;cursor:pointer" onclick="deleteInvoice(${id})">🗑 Delete Invoice</span>
+    </div>`;
+
+  document.getElementById('modal-detail').classList.add('open');
+}
+
+function closeDetail(e) {
+  if (e.target === document.getElementById('modal-detail')) {
+    document.getElementById('modal-detail').classList.remove('open');
+    refreshAll();
+  }
+}
+
+function toggleStatus(id) {
+  const inv = invoices.find(i => i.id === id);
+  if (!inv) return;
+  inv.status = inv.status === 'paid' ? 'pending' : 'paid';
+  save();
+  openDetail(id);
+  showToast(inv.status === 'paid' ? '✅ Marked as Paid' : '↩ Marked as Pending');
+}
+
+function deleteInvoice(id) {
+  if (!confirm('Delete this invoice?')) return;
+  invoices = invoices.filter(i => i.id !== id);
+  save();
+  document.getElementById('modal-detail').classList.remove('open');
+  refreshAll();
+  showToast('🗑 Invoice deleted');
+}
+
+function copyField(text, btnId) {
+  navigator.clipboard?.writeText(text).catch(()=>{});
+  const btn = document.getElementById(btnId);
+  if (btn) { btn.textContent = '✓ Copied'; btn.classList.add('copied'); setTimeout(()=>{ btn.textContent='Copy'; btn.classList.remove('copied'); },1800); }
+  showToast('📋 Copied to clipboard');
+}
+
+// ══════════════════════════════════════
+//  ADD INVOICE
+// ══════════════════════════════════════
+function openAdd() {
+  // Set default due date to today
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-due').value = today;
+  document.getElementById('f-vendor').value = '';
+  document.getElementById('f-amount').value = '';
+  document.getElementById('f-iban').value = '';
+  document.getElementById('f-ref').value = '';
+  selectUrgency('medium');
+  document.getElementById('modal-add').classList.add('open');
+}
+
+function closeAdd(e) {
+  if (e.target === document.getElementById('modal-add')) document.getElementById('modal-add').classList.remove('open');
+}
+
+function selectUrgency(level) {
+  selectedUrgency = level;
+  ['high','medium','low'].forEach(u => {
+    const el = document.getElementById(`u-${u}`);
+    el.className = 'urgency-opt' + (u === level ? ` sel-${u}` : '');
+  });
+}
+
+function saveInvoice() {
+  const vendor = document.getElementById('f-vendor').value.trim();
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  const due = document.getElementById('f-due').value;
+  if (!vendor || !amount || !due) { showToast('⚠️ Please fill required fields'); return; }
+
+  const inv = {
+    id: nextId++,
+    vendor,
+    amount,
+    currency: document.getElementById('f-currency').value,
+    due,
+    category: document.getElementById('f-category').value,
+    status: 'pending',
+    urgency: selectedUrgency,
+    iban: document.getElementById('f-iban').value.trim(),
+    ref: document.getElementById('f-ref').value.trim(),
+  };
+  invoices.push(inv);
+  save();
+  document.getElementById('modal-add').classList.remove('open');
+  refreshAll();
+  showToast('✅ Invoice added!');
+}
+
+// ══════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+  if (name === 'calendar') { renderCalendar('cal-grid2','cal-title2'); }
+  if (name === 'archive') renderArchive();
+}
+
+function setSort(mode) {
+  sortMode = mode;
+  document.getElementById('tab-date').classList.toggle('active', mode==='date');
+  document.getElementById('tab-amount').classList.toggle('active', mode==='amount');
+  renderDashboard();
+}
+
+// ══════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════
+function exportData() {
+  const blob = new Blob([JSON.stringify(invoices, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'billflow-export.json'; a.click();
+  showToast('📤 Data exported!');
+}
+
+function confirmClearData() {
+  if (confirm('Delete ALL invoices? This cannot be undone.')) {
+    invoices = []; save(); refreshAll(); showToast('🗑 All data cleared');
+  }
+}
+
+// ══════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ══════════════════════════════════════
+//  CLOCK
+// ══════════════════════════════════════
+function updateClock() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:false});
+  document.querySelectorAll('#clock,#clock2').forEach(el=>{if(el)el.textContent=t;});
+  const dateLabel = now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const hd = document.getElementById('header-date'); if(hd) hd.textContent = dateLabel;
+}
+
+function refreshAll() { renderDashboard(); }
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+updateClock();
+setInterval(updateClock, 30000);
+renderDashboard();
+</script>
+</body>
+</html>

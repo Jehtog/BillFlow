@@ -16,7 +16,7 @@ const invoicesProxy = new Proxy(invoices, {
 async function parseImageText(imgData) {
     const ss = document.getElementById('scan-status');
     ss.style.display = 'block';
-    ss.textContent = '⏳ Reading your document…';
+    ss.textContent = '⏳ Reading your document...';
 
     try {
         const { data: { text } } = await Tesseract.recognize(imgData, 'eng');
